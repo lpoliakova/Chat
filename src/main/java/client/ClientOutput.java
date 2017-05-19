@@ -9,9 +9,9 @@ import java.util.concurrent.CountDownLatch;
  * Created by oradchykova on 5/9/17.
  */
 public class ClientOutput implements Runnable {
-    static Scanner console = new Scanner(System.in);
-    PrintWriter out;
-    CountDownLatch latch;
+    private static Scanner console = new Scanner(System.in);
+    private PrintWriter out;
+    private CountDownLatch latch;
 
     ClientOutput(OutputStream outputStream, CountDownLatch latch){
         this.out = new PrintWriter(outputStream);

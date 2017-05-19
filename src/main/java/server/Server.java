@@ -1,8 +1,10 @@
 package server;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -10,7 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by oradchykova on 5/9/17.
  */
 public class Server {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws UnknownHostException{
+        System.out.println(InetAddress.getLocalHost());
         Map<String, Socket> users = new ConcurrentHashMap<>();
         try (ServerSocket server = new ServerSocket(2049)){
             while (true){

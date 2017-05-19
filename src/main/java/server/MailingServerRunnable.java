@@ -115,6 +115,7 @@ public class MailingServerRunnable implements Runnable {
 
     private void quitFromChat(){
         sendMessage("You left the chat!");
+        sendBroadcastMessage("has left chat");
         try {
             internalSocket.close();
         } catch (IOException ex){
