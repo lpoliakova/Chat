@@ -1,4 +1,4 @@
-package Client;
+package client;
 
 import java.io.InputStream;
 import java.util.Scanner;

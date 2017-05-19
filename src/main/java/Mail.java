@@ -18,7 +18,7 @@ public class Mail {
             out.println("Subject: test");
             out.println();
             out.println("Hello!");
-            out.println(".");
+            out.println("");
             out.println("QUIT");
             System.out.println("Sent");
             Scanner scan = new Scanner(s.getInputStream());
