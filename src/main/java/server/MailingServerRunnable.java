@@ -5,11 +5,14 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Created by oradchykova on 5/9/17.
  */
 public class MailingServerRunnable implements Runnable {
+    private static final Logger logger = Logger.getLogger("ChatServer");
     private Socket internalSocket;
     private Scanner in;
     private PrintWriter out;
@@ -22,8 +25,7 @@ public class MailingServerRunnable implements Runnable {
             in = new Scanner(internalSocket.getInputStream());
             out = new PrintWriter(internalSocket.getOutputStream());
         } catch (IOException ex) {
-            System.out.println("Connection error");
-            ex.printStackTrace();
+            logger.log(Level.SEVERE, "Connection error", ex);
         }
 
         this.users = users;
@@ -31,11 +33,15 @@ public class MailingServerRunnable implements Runnable {
 
     @Override
     public void run() {
-        sendGreeting();
-        getUsername();
+        try {
+            sendGreeting();
+            getUsername();
 
-        while (true) {
-            if (!receiveMessage()) break;
+            while (true) {
+                if (!receiveMessage()) break;
+            }
+        } catch (Exception ex) {
+            logger.log(Level.SEVERE, "Runtime exception", ex);
         }
     }
 
@@ -57,6 +63,7 @@ public class MailingServerRunnable implements Runnable {
         username = name;
         users.put(username, internalSocket);
         sendMessage("Your username is " + username);
+        logger.fine("Created new user. Username " + username);
     }
 
     private boolean receiveMessage() {
@@ -94,8 +101,7 @@ public class MailingServerRunnable implements Runnable {
             userOut.println(this.username + " privately: " + message);
             userOut.flush();
         } catch (IOException ex){
-            System.out.println("Connection error");
-            ex.printStackTrace();
+            logger.log(Level.SEVERE, "Connection error", ex);
         }
     }
 
@@ -107,8 +113,7 @@ public class MailingServerRunnable implements Runnable {
                 userOut.println(username + ": " + message);
                 userOut.flush();
             } catch (IOException ex){
-                System.out.println("Connection error");
-                ex.printStackTrace();
+                logger.log(Level.SEVERE, "Connection error", ex);
             }
         }
     }
@@ -119,10 +124,10 @@ public class MailingServerRunnable implements Runnable {
         try {
             internalSocket.close();
         } catch (IOException ex){
-            System.out.println("Connection error");
-            ex.printStackTrace();
+            logger.log(Level.SEVERE, "Connection error", ex);
         }
         users.remove(username);
+        logger.fine("User " + username + " left chat.");
     }
 
     private String getUsers(){
