@@ -13,16 +13,16 @@ public class Client {
         try {
             Socket socket = new Socket("127.0.0.1", 2049);
 
-            CountDownLatch latch = new CountDownLatch(2);
-
-            Thread threadIn = new Thread(new ClientInput(socket.getInputStream(), latch));
+            Thread threadIn = new Thread(new ClientInput(socket.getInputStream()));
             threadIn.start();
 
-            Thread threadOut = new Thread(new ClientOutput(socket.getOutputStream(), latch));
+            Thread threadOut = new Thread(new ClientOutput(socket.getOutputStream()));
             threadOut.start();
 
+
             try {
-                latch.await();
+                threadIn.join();
+                threadOut.join();
             } catch (InterruptedException ex) {
 
             } finally {

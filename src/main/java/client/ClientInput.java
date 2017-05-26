@@ -9,11 +9,9 @@ import java.util.concurrent.CountDownLatch;
  */
 public class ClientInput implements Runnable{
     private Scanner in;
-    private CountDownLatch latch;
 
-    ClientInput(InputStream inputStream, CountDownLatch latch){
+    ClientInput(InputStream inputStream){
         this.in = new Scanner(inputStream);
-        this.latch = latch;
     }
 
     @Override
@@ -24,8 +22,6 @@ public class ClientInput implements Runnable{
                 break;
             }
         }
-        latch.countDown();
-
     }
 
     static void printReceivedMessage(String message){

@@ -11,11 +11,9 @@ import java.util.concurrent.CountDownLatch;
 public class ClientOutput implements Runnable {
     private static Scanner console = new Scanner(System.in);
     private PrintWriter out;
-    private CountDownLatch latch;
 
-    ClientOutput(OutputStream outputStream, CountDownLatch latch){
+    ClientOutput(OutputStream outputStream){
         this.out = new PrintWriter(outputStream);
-        this.latch = latch;
     }
 
     @Override
@@ -28,6 +26,5 @@ public class ClientOutput implements Runnable {
                 break;
             }
         }
-        latch.countDown();
     }
 }
