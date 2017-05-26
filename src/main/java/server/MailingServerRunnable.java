@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -42,6 +43,8 @@ public class MailingServerRunnable implements Runnable {
             }
         } catch (Exception ex) {
             logger.log(Level.SEVERE, "Runtime exception", ex);
+        } finally {
+            forceQuit();
         }
     }
 
@@ -67,7 +70,12 @@ public class MailingServerRunnable implements Runnable {
     }
 
     private boolean receiveMessage() {
-        String line = in.nextLine();
+        String line;
+        try {
+            line = in.nextLine();
+        } catch (NoSuchElementException ex){
+            return false;
+        }
         System.out.println(line);
 
         if (line.trim().toUpperCase().equals("QUIT")) {
@@ -120,6 +128,11 @@ public class MailingServerRunnable implements Runnable {
 
     private void quitFromChat(){
         sendMessage("You left the chat!");
+        forceQuit();
+        logger.fine("User " + username + " left chat.");
+    }
+
+    private void forceQuit(){
         sendBroadcastMessage("has left chat");
         try {
             internalSocket.close();
@@ -127,7 +140,6 @@ public class MailingServerRunnable implements Runnable {
             logger.log(Level.SEVERE, "Connection error", ex);
         }
         users.remove(username);
-        logger.fine("User " + username + " left chat.");
     }
 
     private String getUsers(){
