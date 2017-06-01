@@ -7,6 +7,8 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.*;
 
 /**
@@ -14,26 +16,26 @@ import java.util.logging.*;
  */
 public class Server {
     public static void main(String[] args) throws UnknownHostException{
-        Logger logger = initLogging();
+        initLogging();
         System.out.println(InetAddress.getLocalHost());
         Map<String, Socket> users = new ConcurrentHashMap<>();
         try (ServerSocket server = new ServerSocket(2049)){
-            while (true){
-                Socket income = server.accept();
-                startNewConnection(income, users, logger);
+            ExecutorService executors = Executors.newCachedThreadPool();
+            try {
+                while (true) {
+                    Socket income = server.accept();
+                    executors.submit(new MailingServerRunnable(income, users));
+                    Logger.getLogger("ChatServer").fine("start new connection");
+                }
+            } finally {
+                executors.shutdownNow();
             }
         } catch (IOException ex){
-            logger.log(Level.SEVERE, "Connection error", ex);
+            Logger.getLogger("ChatServer").log(Level.SEVERE, "Connection error", ex);
         }
     }
 
-    private static void startNewConnection(Socket socket, Map<String, Socket> users, Logger logger){
-        Thread thread = new Thread(new MailingServerRunnable(socket, users));
-        logger.fine("start new connection");
-        thread.start();
-    }
-
-    private static Logger initLogging(){
+    private static void initLogging(){
         Logger logger = Logger.getLogger("ChatServer");
         logger.setLevel(Level.FINE);
         //logger.setUseParentHandlers(false);
@@ -44,6 +46,5 @@ public class Server {
         } catch (IOException ex) {
             logger.log(Level.SEVERE, "Can't create log file handler", ex);
         }
-        return logger;
     }
 }
