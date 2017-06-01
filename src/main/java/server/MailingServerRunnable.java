@@ -44,7 +44,7 @@ public class MailingServerRunnable implements Runnable {
         } catch (Exception ex) {
             logger.log(Level.SEVERE, "Runtime exception", ex);
         } finally {
-            forceQuit();
+            quitFromChat();
         }
     }
 
@@ -79,7 +79,7 @@ public class MailingServerRunnable implements Runnable {
         System.out.println(line);
 
         if (line.trim().toUpperCase().equals("QUIT")) {
-            quitFromChat();
+            sendMessage("You left the chat!");
             return false;
         }
 
@@ -127,12 +127,6 @@ public class MailingServerRunnable implements Runnable {
     }
 
     private void quitFromChat(){
-        sendMessage("You left the chat!");
-        forceQuit();
-        logger.fine("User " + username + " left chat.");
-    }
-
-    private void forceQuit(){
         sendBroadcastMessage("has left chat");
         try {
             internalSocket.close();
@@ -140,6 +134,7 @@ public class MailingServerRunnable implements Runnable {
             logger.log(Level.SEVERE, "Connection error", ex);
         }
         users.remove(username);
+        logger.fine("User " + username + " left chat.");
     }
 
     private String getUsers(){
