@@ -1,5 +1,7 @@
 package server;
 
+import Database.DBConnection;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -19,8 +21,9 @@ public class MailingServerRunnable implements Runnable {
     private PrintWriter out;
     private Map<String, Socket> users;
     private String username;
+    private String DBName;
 
-    MailingServerRunnable(Socket socket, Map<String, Socket> users){
+    MailingServerRunnable(Socket socket, Map<String, Socket> users, String database){
         internalSocket = socket;
         try {
             in = new Scanner(internalSocket.getInputStream());
@@ -30,6 +33,7 @@ public class MailingServerRunnable implements Runnable {
         }
 
         this.users = users;
+        this.DBName = database;
     }
 
     @Override
@@ -37,6 +41,7 @@ public class MailingServerRunnable implements Runnable {
         try {
             sendGreeting();
             getUsername();
+            addUserToDatabase();
 
             while (true) {
                 if (!receiveMessage()) break;
@@ -67,6 +72,12 @@ public class MailingServerRunnable implements Runnable {
         users.put(username, internalSocket);
         sendMessage("Your username is " + username);
         logger.fine("Created new user. Username " + username);
+    }
+
+    private void addUserToDatabase(){
+        try (DBConnection connection = new DBConnection(DBName)) {
+            connection.updateUserEntered(username);
+        }
     }
 
     private boolean receiveMessage() {
@@ -104,6 +115,10 @@ public class MailingServerRunnable implements Runnable {
             return;
         }
 
+        try (DBConnection connection = new DBConnection(DBName)) {
+            connection.updateUserSentMessage(this.username, message, username);
+        }
+
         try {
             PrintWriter userOut = new PrintWriter(user.getOutputStream());
             userOut.println(this.username + " privately: " + message);
@@ -114,6 +129,10 @@ public class MailingServerRunnable implements Runnable {
     }
 
     private void sendBroadcastMessage(String message){
+        try (DBConnection connection = new DBConnection(DBName)) {
+            connection.updateUserSentMessage(username, message, null);
+        }
+
         for (Map.Entry<String, Socket> user: users.entrySet()){
             if (user.getKey().equals(username)) continue;
             try {
