@@ -10,8 +10,6 @@ import java.util.Scanner;
  */
 public class DBConnection implements Closeable{
     private Connection connection;
-    private static String username;
-    private static String password;
 
     public static void main(String[] args){
         createDatabaseIfNotExists("Chat");
@@ -21,15 +19,23 @@ public class DBConnection implements Closeable{
         }
     }
 
-    public static void createDatabaseIfNotExists(String DBName){
-        getUsernameAndPassword();
-        try (Connection conn = DriverManager.getConnection(getLocalUrl(), username, password)){
+    public static void createDatabaseIfNotExists(String dbName){
+        MySqlCredentials credentials = MySqlCredentials.getInstance();
+        createDatabase(dbName, credentials);
+        createTables(dbName, credentials);
+    }
+
+    private static void createDatabase(String dbName, MySqlCredentials credentials){
+        try (Connection conn = DriverManager.getConnection(MySqlCredentials.LOCAL_URL, credentials.getUsername(), credentials.getPassword())){
             Statement statement = conn.createStatement();
-            statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + DBName);
+            statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbName);
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
-        try (Connection conn = DriverManager.getConnection(getLocalUrl() + DBName, username, password)){
+    }
+
+    private static void createTables(String dbName, MySqlCredentials credentials){
+        try (Connection conn = DriverManager.getConnection(MySqlCredentials.LOCAL_URL + dbName, credentials.getUsername(), credentials.getPassword())){
             Statement statement = conn.createStatement();
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS Users " +
                     "(ID int NOT NULL AUTO_INCREMENT, Username VARCHAR(100) UNIQUE NOT NULL, Used int NOT NULL DEFAULT 1, MessagesCount int NOT NULL DEFAULT 0, PRIMARY KEY(ID))");
@@ -41,18 +47,10 @@ public class DBConnection implements Closeable{
         }
     }
 
-    public DBConnection(String DBName){
-        getUsernameAndPassword();
+    public DBConnection(String dbName){
+        MySqlCredentials credentials = MySqlCredentials.getInstance();
         try {
-            connection = DriverManager.getConnection(getLocalUrl() + DBName, username, password);
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-        }
-    }
-
-    public DBConnection(String DBName, String username, String password){
-        try {
-            connection = DriverManager.getConnection(getLocalUrl() + DBName, username, password);
+            connection = DriverManager.getConnection(MySqlCredentials.LOCAL_URL + dbName, credentials.getUsername(), credentials.getPassword());
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
@@ -87,12 +85,13 @@ public class DBConnection implements Closeable{
             }
             Savepoint savepoint = connection.setSavepoint();
             try {
-                statement.executeUpdate("UPDATE Users SET Users.MessagesCount = " + (messagesCount + 1) + " WHERE Users.ID = " + id);
+                statement.addBatch("UPDATE Users SET Users.MessagesCount = " + (messagesCount + 1) + " WHERE Users.ID = " + id);
                 if (toUsername == null){
-                    statement.executeUpdate("INSERT INTO Messages (UserID, Message) VALUES (" + id + ", '" + message + "')");
+                    statement.addBatch("INSERT INTO Messages (UserID, Message) VALUES (" + id + ", '" + message + "')");
                 } else {
-                    statement.executeUpdate("INSERT INTO Messages (UserID, Message, ToUserID) VALUES (" + id + ", '" + message + "', " + otherId + ")");
+                    statement.addBatch("INSERT INTO Messages (UserID, Message, ToUserID) VALUES (" + id + ", '" + message + "', " + otherId + ")");
                 }
+                statement.executeBatch();
             } catch (SQLException ex){
                 connection.rollback(savepoint);
                 ex.printStackTrace();
@@ -112,25 +111,5 @@ public class DBConnection implements Closeable{
         }
     }
 
-    private static String getLocalUrl(){
-        return "jdbc:mysql://localhost:3306/";
-    }
 
-    private static String getUsername(Scanner scan){
-        System.out.println("MySql username:");
-        return scan.nextLine();
-    }
-
-    private static String getPassword(Scanner scan){
-        System.out.println("MySql password:");
-        return scan.nextLine();
-    }
-
-    private static void getUsernameAndPassword(){
-        if (username == null || password == null) {
-            Scanner scan = new Scanner(System.in);
-            username = getUsername(scan);
-            password = getPassword(scan);
-        }
-    }
 }

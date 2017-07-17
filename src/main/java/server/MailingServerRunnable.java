@@ -3,6 +3,8 @@ package server;
 import Database.DBConnection;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Map;
@@ -16,40 +18,42 @@ import java.util.logging.Logger;
  */
 public class MailingServerRunnable implements Runnable {
     private static final Logger logger = Logger.getLogger("ChatServer");
-    private Socket internalSocket;
+    private final Socket socket;
+    private final Map<String, Socket> users;
+    private final String dbName;
     private Scanner in;
     private PrintWriter out;
-    private Map<String, Socket> users;
-    private String username;
-    private String DBName;
 
     MailingServerRunnable(Socket socket, Map<String, Socket> users, String database){
-        internalSocket = socket;
-        try {
-            in = new Scanner(internalSocket.getInputStream());
-            out = new PrintWriter(internalSocket.getOutputStream());
-        } catch (IOException ex) {
-            logger.log(Level.SEVERE, "Connection error", ex);
-        }
-
+        this.socket = socket;
         this.users = users;
-        this.DBName = database;
+        this.dbName = database;
+    }
+
+    private void setStreams(InputStream input, OutputStream output){
+        in = new Scanner(input);
+        out = new PrintWriter(output);
     }
 
     @Override
     public void run() {
+        String username = "";
         try {
+            setStreams(socket.getInputStream(), socket.getOutputStream());
+
             sendGreeting();
-            getUsername();
-            addUserToDatabase();
+            username = getUsername();
+            addUserToDatabase(username);
 
             while (true) {
-                if (!receiveMessage()) break;
+                if (!receiveMessage(username)) break;
             }
+        } catch (IOException ex) {
+            logger.log(Level.SEVERE, "Connection error", ex);
         } catch (Exception ex) {
             logger.log(Level.SEVERE, "Runtime exception", ex);
         } finally {
-            quitFromChat();
+            if (!username.isEmpty()) quitFromChat(username);
         }
     }
 
@@ -57,7 +61,7 @@ public class MailingServerRunnable implements Runnable {
         sendMessage("Hello! Send \"QUIT\" to exit");
     }
 
-    private void getUsername(){
+    private String getUsername(){
         sendMessage("Enter your username:");
         String name = in.nextLine();
         boolean wrongName = users.containsKey(name);
@@ -68,19 +72,19 @@ public class MailingServerRunnable implements Runnable {
             wrongName = users.containsKey(name);
         }
 
-        username = name;
-        users.put(username, internalSocket);
-        sendMessage("Your username is " + username);
-        logger.fine("Created new user. Username " + username);
+        users.put(name, socket);
+        sendMessage("Your username is " + name);
+        logger.fine("Created new user. Username " + name);
+        return name;
     }
 
-    private void addUserToDatabase(){
-        try (DBConnection connection = new DBConnection(DBName)) {
+    private void addUserToDatabase(String username){
+        try (DBConnection connection = new DBConnection(dbName)) {
             connection.updateUserEntered(username);
         }
     }
 
-    private boolean receiveMessage() {
+    private boolean receiveMessage(String username) {
         String line;
         try {
             line = in.nextLine();
@@ -95,10 +99,9 @@ public class MailingServerRunnable implements Runnable {
         }
 
         if (line.startsWith("@")) {
-            int endOfUsername = line.indexOf(" ");
-            sendPrivateMessage(line.substring(1, endOfUsername), line.substring(endOfUsername + 1, line.length()));
+            sendPrivateMessage(line, username);
         } else {
-            sendBroadcastMessage(line);
+            sendBroadcastMessage(line, username);
         }
         return true;
     }
@@ -108,28 +111,32 @@ public class MailingServerRunnable implements Runnable {
         out.flush();
     }
 
-    private void sendPrivateMessage(String username, String message){
-        Socket user = users.get(username);
+    private void sendPrivateMessage(String line, String username){
+        int endOfUsername = line.indexOf(" ");
+        final String toUser = line.substring(1, endOfUsername);
+        final String message = line.substring(endOfUsername + 1, line.length());
+
+        Socket user = users.get(toUser);
         if (user == null){
             sendMessage("From server: Such user does not exist");
             return;
         }
 
-        try (DBConnection connection = new DBConnection(DBName)) {
-            connection.updateUserSentMessage(this.username, message, username);
+        try (DBConnection connection = new DBConnection(dbName)) {
+            connection.updateUserSentMessage(username, message, toUser);
         }
 
         try {
             PrintWriter userOut = new PrintWriter(user.getOutputStream());
-            userOut.println(this.username + " privately: " + message);
+            userOut.println(username + " privately: " + message);
             userOut.flush();
         } catch (IOException ex){
             logger.log(Level.SEVERE, "Connection error", ex);
         }
     }
 
-    private void sendBroadcastMessage(String message){
-        try (DBConnection connection = new DBConnection(DBName)) {
+    private void sendBroadcastMessage(String message, String username){
+        try (DBConnection connection = new DBConnection(dbName)) {
             connection.updateUserSentMessage(username, message, null);
         }
 
@@ -145,10 +152,10 @@ public class MailingServerRunnable implements Runnable {
         }
     }
 
-    private void quitFromChat(){
-        sendBroadcastMessage("has left chat");
+    private void quitFromChat(String username){
+        sendBroadcastMessage("has left chat", username);
         try {
-            internalSocket.close();
+            socket.close();
         } catch (IOException ex){
             logger.log(Level.SEVERE, "Connection error", ex);
         }

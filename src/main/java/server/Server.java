@@ -17,18 +17,19 @@ import java.util.logging.*;
  * Created by oradchykova on 5/9/17.
  */
 public class Server {
+
     public static void main(String[] args) throws UnknownHostException{
         initLogging();
-        System.out.println(InetAddress.getLocalHost());
-        Map<String, Socket> users = new ConcurrentHashMap<>();
-        String DBName = "Chat";
-        DBConnection.createDatabaseIfNotExists(DBName);
-        try (ServerSocket server = new ServerSocket(2049)){
-            ExecutorService executors = Executors.newCachedThreadPool();
+
+        final Map<String, Socket> users = new ConcurrentHashMap<>();
+        final String dbName = "Chat";
+        DBConnection.createDatabaseIfNotExists(dbName);
+        try (ServerSocket server = new ServerSocket(2049)) {
+            final ExecutorService executors = Executors.newCachedThreadPool();
             try {
                 while (true) {
-                    Socket income = server.accept();
-                    executors.submit(new MailingServerRunnable(income, users, DBName));
+                    Socket socketConnection = server.accept();
+                    executors.submit(new MailingServerRunnable(socketConnection, users, dbName));
                     Logger.getLogger("ChatServer").fine("start new connection");
                 }
             } finally {
